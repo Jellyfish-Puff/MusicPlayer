@@ -10,6 +10,16 @@ class MusicAPI:
         self.base_url = base_url
         self.last_request_time = 0
         self.request_interval = 1.0  # 请求间隔，避免超过频率限制
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://music.gdstudio.xyz/',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Origin': 'https://music.gdstudio.xyz',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site'
+        }
     
     def _make_request(self, params: Dict) -> Optional[Any]:
         """发送API请求"""
@@ -21,7 +31,7 @@ class MusicAPI:
         
         try:
             self.log(f"发送请求: {params}")
-            response = requests.get(self.base_url, params=params, timeout=15)
+            response = requests.get(self.base_url, params=params, headers=self.headers, timeout=15)
             self.last_request_time = time.time()
             
             self.log(f"响应状态码: {response.status_code}")
@@ -31,7 +41,7 @@ class MusicAPI:
                 self.log(f"响应数据: {json.dumps(data, ensure_ascii=False)[:100]}...")
                 return data
             else:
-                self.log(f"API请求失败: HTTP {response.status_code}")
+                self.log(f"API请求失败: HTTP {response.status_code} - {response.text[:100]}")
                 return None
                 
         except requests.exceptions.RequestException as e:
@@ -51,7 +61,15 @@ class MusicAPI:
             'count': count,
             'pages': page
         }
-        return self._make_request(params)
+        result = self._make_request(params)
+        
+        # 处理API返回格式
+        if isinstance(result, dict) and 'data' in result:
+            return result['data']
+        elif isinstance(result, list):
+            return result
+        else:
+            return None
     
     def get_play_url(self, song_id: str, source: str = "netease", 
                      quality: str = "320") -> Optional[Dict]:

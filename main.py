@@ -8,6 +8,7 @@ GD音乐播放器 - 主程序入口
 import tkinter as tk
 import sys
 import os
+import traceback
 
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -37,30 +38,20 @@ def main():
         # 创建应用程序
         app = MainWindow(root)
         
-        # 配置窗口
-        root.protocol("WM_DELETE_WINDOW", lambda: on_closing(root, app))
+        # 配置窗口关闭事件
+        def on_closing():
+            # 这里不再需要额外处理，因为MainWindow已经处理了关闭事件
+            pass
+        
+        root.protocol("WM_DELETE_WINDOW", lambda: app.on_closing())
         
         # 启动主循环
         root.mainloop()
         
     except Exception as e:
         print(f"程序启动失败: {e}")
-        import traceback
         traceback.print_exc()
         input("按Enter键退出...")
-
-def on_closing(root, app):
-    """处理窗口关闭事件"""
-    # 保存收藏
-    if hasattr(app, 'save_favorites'):
-        app.save_favorites()
-    
-    # 停止播放
-    if hasattr(app, 'player_window') and app.player_window:
-        app.player_window.stop()
-    
-    # 关闭窗口
-    root.destroy()
 
 if __name__ == "__main__":
     main()
