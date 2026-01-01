@@ -1,0 +1,18 @@
+music_player/
+├── main.py              # 主程序入口
+├── gui/
+│   ├── __init__.py
+│   ├── main_window.py   # 主窗口
+│   └── player_window.py # 播放器窗口
+├── api/
+│   ├── __init__.py
+│   └── music_api.py     # API接口封装
+├── player/
+│   ├── __init__.py
+│   └── audio_player.py  # 音频播放器
+├── utils/
+│   ├── __init__.py
+│   ├── file_handler.py  # 文件处理
+│   └── logger.py        # 日志处理
+└── data/
+    └── favorites.json   # 收藏数据
