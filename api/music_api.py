@@ -84,7 +84,26 @@ class MusicAPI:
             'id': song_id,
             'br': quality
         }
-        return self._make_request(params)
+        result = self._make_request(params)
+        
+        # 如果API返回的是列表，取第一个
+        if isinstance(result, list) and len(result) > 0:
+            result = result[0]
+        
+        # 确保返回的URL是有效的
+        if isinstance(result, dict) and 'url' in result:
+            url = result['url']
+            if url and url.startswith('http'):
+                # 对酷我音乐的特殊处理
+                if source == 'kuwo' and 'tx-para' in url:
+                    # 移除可能导致403的参数
+                    import re
+                    url = re.sub(r'[?&]tx-para=[^&]*', '', url)
+                
+                # 更新返回的URL
+                result['url'] = url
+        
+        return result
     
     def log(self, message: str):
         """日志记录"""

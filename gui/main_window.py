@@ -17,6 +17,7 @@ from api.music_api import MusicAPI
 from utils.file_handler import FileHandler
 from utils.playlist_handler import PlaylistHandler
 from utils.logger import Logger
+from utils.download_manager import DownloadManager
 
 class MainWindow:
     """主窗口控制器"""
@@ -52,6 +53,13 @@ class MainWindow:
         
         # 下载相关变量
         self.download_path = "downloads/"
+        self.download_manager = DownloadManager(self.download_path)
+        
+        # 设置下载回调
+        self.download_manager.on_download_start = self._on_download_start
+        self.download_manager.on_download_progress = self._on_download_progress
+        self.download_manager.on_download_complete = self._on_download_complete
+        self.download_manager.on_download_error = self._on_download_error
         
         try:
             # 创建界面
@@ -664,10 +672,78 @@ class MainWindow:
     
     def download_song(self, song_id, song_data, source, quality):
         """下载歌曲"""
-        self.log(f"下载功能开发中: {song_data.get('name', '未知歌曲')}")
+        self.log(f"开始下载: {song_data.get('name', '未知歌曲')}")
+        
+        # 添加到下载队列
+        download_item = self.download_manager.add_to_queue(song_data, source, quality)
+        
+        # 更新下载管理面板（如果存在）
+        if hasattr(self, 'downloads_panel') and self.downloads_panel:
+            self.downloads_panel.update_download_queue()
+    
+    def get_download_queue(self):
+        """获取下载队列"""
+        return self.download_manager.get_download_queue()
+    
+    def get_download_history(self):
+        """获取下载历史"""
+        return self.download_manager.get_download_history()
+    
+    def cancel_download(self, download_id):
+        """取消下载"""
+        return self.download_manager.remove_from_queue(download_id)
+    
+    def cancel_all_downloads(self):
+        """取消所有下载"""
+        self.download_manager.cancel_all_downloads()
+    
+    def _on_download_start(self, download_item):
+        """下载开始回调"""
+        def update_ui():
+            self.log(f"开始下载: {download_item['name']}")
+            if hasattr(self, 'downloads_panel') and self.downloads_panel:
+                self.downloads_panel.update_download_queue()
+        
         if self.root and not self.window_closed and self.root.winfo_exists():
-            messagebox.showinfo("提示", "下载功能开发中，敬请期待！")
-        # TODO: 实现下载功能
+            self.root.after(0, update_ui)
+    
+    def _on_download_progress(self, download_item):
+        """下载进度回调"""
+        def update_ui():
+            if hasattr(self, 'downloads_panel') and self.downloads_panel:
+                self.downloads_panel.update_download_progress(download_item)
+        
+        if self.root and not self.window_closed and self.root.winfo_exists():
+            self.root.after(0, update_ui)
+    
+    def _on_download_complete(self, download_item):
+        """下载完成回调"""
+        def update_ui():
+            self.log(f"下载完成: {download_item['name']}")
+            if hasattr(self, 'downloads_panel') and self.downloads_panel:
+                self.downloads_panel.update_download_queue()
+                self.downloads_panel.refresh_downloads()
+            
+            # 显示完成消息
+            if self.root and not self.window_closed and self.root.winfo_exists():
+                messagebox.showinfo("下载完成", f"'{download_item['name']}' 下载完成！")
+        
+        if self.root and not self.window_closed and self.root.winfo_exists():
+            self.root.after(0, update_ui)
+    
+    def _on_download_error(self, download_item, error_msg):
+        """下载错误回调"""
+        def update_ui():
+            self.log(f"下载失败: {download_item['name']} - {error_msg}", "ERROR")
+            if hasattr(self, 'downloads_panel') and self.downloads_panel:
+                self.downloads_panel.update_download_queue()
+            
+            # 显示错误消息
+            if self.root and not self.window_closed and self.root.winfo_exists():
+                messagebox.showerror("下载失败", f"'{download_item['name']}' 下载失败: {error_msg}")
+        
+        if self.root and not self.window_closed and self.root.winfo_exists():
+            self.root.after(0, update_ui)
     
     # ========== 窗口关闭处理 ==========
     
