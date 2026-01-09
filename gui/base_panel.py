@@ -1,7 +1,6 @@
 # gui/base_panel.py
 import tkinter as tk
 from tkinter import ttk, messagebox
-import threading
 from abc import ABC, abstractmethod
 
 class BasePanel(ABC):
@@ -36,9 +35,3 @@ class BasePanel(ABC):
         elif type == "ask":
             return messagebox.askyesno(title, message)
         return None
-    
-    def run_in_thread(self, target, args=(), daemon=True):
-        """在新线程中运行函数"""
-        thread = threading.Thread(target=target, args=args, daemon=daemon)
-        thread.start()
-        return thread

@@ -2,8 +2,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
-import threading
-import time
 import json
 from datetime import datetime
 from .base_panel import BasePanel
@@ -71,15 +69,9 @@ class DownloadsPanel(BasePanel):
         ttk.Button(action_frame, text="删除文件", command=self.delete_downloaded_file).grid(row=0, column=2, padx=2)
         ttk.Button(action_frame, text="清除历史", command=self.clear_download_history).grid(row=0, column=3, padx=2)
         
-        # 批量下载（简化版）
-        batch_frame = ttk.LabelFrame(self.frame, text="批量下载", padding="10")
-        batch_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
-        
-        ttk.Label(batch_frame, text="批量下载功能开发中...").grid(row=0, column=0, sticky=tk.W)
-        
         # 下载统计
         stats_frame = ttk.Frame(self.frame)
-        stats_frame.grid(row=3, column=0, sticky=(tk.W, tk.E))
+        stats_frame.grid(row=2, column=0, sticky=(tk.W, tk.E))
         
         self.stats_label = ttk.Label(stats_frame, text="文件数: 0 | 总大小: 0MB")
         self.stats_label.grid(row=0, column=0, sticky=tk.W)
@@ -298,22 +290,6 @@ class DownloadsPanel(BasePanel):
             return f"{size_bytes/(1024*1024):.1f}MB"
         else:
             return f"{size_bytes/(1024*1024*1024):.1f}GB"
-    
-    def add_download_record(self, filename, size, success=True):
-        """添加下载记录"""
-        record = {
-            'filename': filename,
-            'size': size,
-            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'success': success
-        }
-        self.download_history.append(record)
-        
-        # 保存下载历史到文件
-        self._save_download_history()
-        
-        # 刷新显示
-        self.refresh_downloads()
     
     def _save_download_history(self):
         """保存下载历史到文件"""

@@ -86,26 +86,6 @@ class MusicAPI:
         }
         return self._make_request(params)
     
-    def get_lyric(self, lyric_id: str, source: str = "netease") -> Optional[Dict]:
-        """获取歌词"""
-        params = {
-            'types': 'lyric',
-            'source': source,
-            'id': lyric_id
-        }
-        return self._make_request(params)
-    
-    def get_album_pic(self, pic_id: str, source: str = "netease", 
-                      size: int = 500) -> Optional[Dict]:
-        """获取专辑图"""
-        params = {
-            'types': 'pic',
-            'source': source,
-            'id': pic_id,
-            'size': size
-        }
-        return self._make_request(params)
-    
     def log(self, message: str):
         """日志记录"""
         print(f"[MusicAPI] {message}")

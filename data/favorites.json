@@ -6,11 +6,7 @@
       "徐誉滕"
     ],
     "album": "滕爱Teng Love",
-    "pic_id": "109951165455249371",
-    "lyric_id": 1493994302,
-    "source": "netease",
-    "display_name": "等一分钟 Wait One Minute",
-    "display_artist": "徐誉滕"
+    "source": "netease"
   },
   {
     "id": 233888,
@@ -19,9 +15,6 @@
       "郭静"
     ],
     "album": "下一个天亮",
-    "pic_id": "109951171316025348",
-    "url_id": 233888,
-    "lyric_id": 233888,
     "source": "netease"
   },
   {
@@ -31,9 +24,6 @@
       "LBI利比"
     ],
     "album": "跳楼机",
-    "pic_id": "109951170507596121",
-    "url_id": 2645500113,
-    "lyric_id": 2645500113,
     "source": "netease"
   },
   {
@@ -43,9 +33,6 @@
       "陈奕迅"
     ],
     "album": "What's Going On…?",
-    "pic_id": "109951171844247587",
-    "url_id": 65766,
-    "lyric_id": 65766,
     "source": "netease"
   },
   {
@@ -55,9 +42,6 @@
       "孙燕姿"
     ],
     "album": "白羽毛之恋 华语典藏情歌 Vol.2",
-    "pic_id": "17687843556430013",
-    "url_id": 454828887,
-    "lyric_id": 454828887,
     "source": "netease"
   },
   {
@@ -67,9 +51,6 @@
       "Rosy赵露思"
     ],
     "album": "Black Veil Bride",
-    "pic_id": "109951172237795184",
-    "url_id": 3312557251,
-    "lyric_id": 3312557251,
     "source": "netease"
   },
   {
@@ -79,9 +60,6 @@
       "杨丞琳"
     ],
     "album": "雨爱",
-    "pic_id": "109951172020385959",
-    "url_id": 316100,
-    "lyric_id": 316100,
     "source": "netease"
   },
   {
@@ -91,9 +69,53 @@
       "陌九"
     ],
     "album": "打火机",
-    "pic_id": "109951172065524561",
-    "url_id": 2749896430,
-    "lyric_id": 2749896430,
+    "source": "netease"
+  },
+  {
+    "id": 233882,
+    "name": "下一个天亮",
+    "artist": [
+      "郭静"
+    ],
+    "album": "下一个天亮",
+    "source": "netease"
+  },
+  {
+    "id": 1974630461,
+    "name": "Die For You",
+    "artist": [
+      "VALORANT",
+      "Grabbitz"
+    ],
+    "album": "Die For You",
+    "source": "netease"
+  },
+  {
+    "id": 2641867659,
+    "name": "一点",
+    "artist": [
+      "Muyoi",
+      "Pezzi"
+    ],
+    "album": "一点",
+    "source": "netease"
+  },
+  {
+    "id": 287063,
+    "name": "我怀念的",
+    "artist": [
+      "孙燕姿"
+    ],
+    "album": "逆光",
+    "source": "netease"
+  },
+  {
+    "id": 247936,
+    "name": "最后一页",
+    "artist": [
+      "江语晨"
+    ],
+    "album": "恋习",
     "source": "netease"
   }
 ]

@@ -271,8 +271,3 @@ class SearchPanel(BasePanel):
             
             # 将完整数据存储到item的tags中
             self.results_tree.item(item_id, tags=(json.dumps(song, ensure_ascii=False),))
-    
-    def log(self, message: str):
-        """记录日志到文本控件"""
-        # 这个方法由主窗口的log方法处理，这里只是占位
-        pass

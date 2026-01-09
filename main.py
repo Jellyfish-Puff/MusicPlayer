@@ -38,13 +38,6 @@ def main():
         # 创建应用程序
         app = MainWindow(root)
         
-        # 配置窗口关闭事件
-        def on_closing():
-            # 这里不再需要额外处理，因为MainWindow已经处理了关闭事件
-            pass
-        
-        root.protocol("WM_DELETE_WINDOW", lambda: app.on_closing())
-        
         # 启动主循环
         root.mainloop()
         

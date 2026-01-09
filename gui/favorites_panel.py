@@ -58,8 +58,7 @@ class FavoritesPanel(BasePanel):
         ttk.Button(fav_action_frame, text="播放", command=self.play_selected_favorite).grid(row=0, column=0, padx=2)
         ttk.Button(fav_action_frame, text="下载", command=self.download_selected_favorite).grid(row=0, column=1, padx=2)
         ttk.Button(fav_action_frame, text="移除", command=self.remove_selected_favorite).grid(row=0, column=2, padx=2)
-        ttk.Button(fav_action_frame, text="批量下载", command=self.batch_download_favorites).grid(row=0, column=3, padx=2)
-        ttk.Button(fav_action_frame, text="导出列表", command=self.export_favorites_list).grid(row=0, column=4, padx=2)
+        ttk.Button(fav_action_frame, text="导出列表", command=self.export_favorites_list).grid(row=0, column=3, padx=2)
         
         # 收藏统计信息
         stats_frame = ttk.Frame(self.frame)
@@ -266,7 +265,6 @@ class FavoritesPanel(BasePanel):
         
         for item in selection:
             tags = self.fav_tree.item(item, 'tags')
-            
             if tags:
                 try:
                     song_data = json.loads(tags[0])
@@ -303,7 +301,6 @@ class FavoritesPanel(BasePanel):
         
         for item in selection:
             tags = self.fav_tree.item(item, 'tags')
-            
             if tags:
                 try:
                     song_data = json.loads(tags[0])
@@ -318,22 +315,6 @@ class FavoritesPanel(BasePanel):
             self.show_message("成功", f"已移除 {len(removed_songs)} 首歌曲", "info")
         else:
             self.show_message("警告", "没有歌曲被移除", "warning")
-    
-    def batch_download_favorites(self):
-        """批量下载收藏歌曲"""
-        # 获取收藏列表
-        if hasattr(self.main_app, 'get_favorites'):
-            favorites = self.main_app.get_favorites()
-        else:
-            favorites = []
-            
-        if not favorites:
-            self.show_message("警告", "收藏列表为空", "warning")
-            return
-        
-        # 批量下载逻辑
-        self.log("批量下载功能开发中...")
-        # TODO: 实现批量下载界面和逻辑
     
     def export_favorites_list(self):
         """导出收藏列表"""
