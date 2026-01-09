@@ -15,9 +15,11 @@ class EnhancedPlayerWindow:
         self.player.on_position_change = self._on_player_position_change
         self.player.on_song_change = self._on_song_change
         self.player.on_playlist_end = self._on_playlist_end
-        self.player.on_need_next_song = self._on_need_next_song  # 新增回调
+        self.player.on_need_next_song = self._on_need_next_song
         
+        # 进度条控制
         self.is_dragging = False
+        
         self.current_song = None
         self.current_url_or_path = None
         
@@ -62,45 +64,44 @@ class EnhancedPlayerWindow:
         self.progress_bar = ttk.Scale(self.progress_frame, from_=0, to=100,
                                      orient=tk.HORIZONTAL, length=300)
         self.progress_bar.grid(row=0, column=1, padx=(10, 0), sticky=(tk.W, tk.E))
+        
+        # 禁用默认回调
+        self.progress_bar.configure(command=None)
+        
+        # 绑定鼠标事件
         self.progress_bar.bind("<ButtonPress-1>", self._on_progress_press)
+        self.progress_bar.bind("<B1-Motion>", self._on_progress_drag)
         self.progress_bar.bind("<ButtonRelease-1>", self._on_progress_release)
         
         # 控制按钮
         control_frame = ttk.Frame(self.frame)
         control_frame.grid(row=2, column=1, columnspan=2, sticky=tk.W, pady=10)
         
-        # 上一首按钮
         self.prev_btn = ttk.Button(control_frame, text="⏮", width=3,
                                   command=self.play_previous)
         self.prev_btn.grid(row=0, column=0, padx=2)
         
-        # 播放/暂停按钮
         self.play_btn = ttk.Button(control_frame, text="▶", width=3,
                                   command=self.toggle_play)
         self.play_btn.grid(row=0, column=1, padx=2)
         
-        # 下一首按钮
         self.next_btn = ttk.Button(control_frame, text="⏭", width=3,
                                   command=self.play_next)
         self.next_btn.grid(row=0, column=2, padx=2)
         
-        # 停止按钮
         self.stop_btn = ttk.Button(control_frame, text="⏹", width=3,
                                   command=self.stop)
         self.stop_btn.grid(row=0, column=3, padx=2)
         
-        # 播放列表信息
         playlist_info_frame = ttk.Frame(control_frame)
         playlist_info_frame.grid(row=0, column=4, padx=(20, 0))
         
         self.playlist_info = tk.Label(playlist_info_frame, text="播放列表: 0首")
         self.playlist_info.grid(row=0, column=0)
         
-        # 当前播放位置
         self.current_index_label = tk.Label(playlist_info_frame, text="当前: -")
         self.current_index_label.grid(row=0, column=1, padx=(5, 0))
         
-        # 音量控制
         volume_frame = ttk.Frame(control_frame)
         volume_frame.grid(row=0, column=5, padx=(20, 0))
         
@@ -116,6 +117,71 @@ class EnhancedPlayerWindow:
         # 配置网格权重
         self.frame.columnconfigure(1, weight=1)
         self.progress_frame.columnconfigure(1, weight=1)
+    
+    def _on_progress_press(self, event):
+        """进度条按下事件"""
+        self.is_dragging = True
+        value = self.progress_bar.get()
+        self._update_time_from_progress(value)
+    
+    def _on_progress_drag(self, event):
+        """进度条拖动事件"""
+        if self.is_dragging:
+            value = self.progress_bar.get()
+            self._update_time_from_progress(value)
+    
+    def _on_progress_release(self, event):
+        """进度条释放事件"""
+        if self.is_dragging:
+            value = self.progress_bar.get()
+            
+            duration = self.player.get_duration()
+            if duration > 0:
+                position = (value / 100) * duration
+                
+                # 记录当前状态
+                was_playing = self.player.get_state() == PlayerState.PLAYING
+                
+                # 执行跳转
+                success = self.player.seek(position)
+                
+                if success:
+                    self.log(f"跳转到: {position:.1f}秒")
+                    
+                    # 如果之前是播放状态，确保继续播放
+                    if was_playing and self.player.get_state() != PlayerState.PLAYING:
+                        self.player.play()
+                    
+                    # 强制更新显示
+                    self._force_update_display()
+                
+            self.is_dragging = False
+    
+    def _force_update_display(self):
+        """强制更新显示"""
+        def update():
+            position = self.player.get_position()
+            duration = self.player.get_duration()
+            if duration > 0:
+                progress = (position / duration) * 100
+                self.progress_bar.set(progress)
+                pos_str = self._format_time(position)
+                dur_str = self._format_time(duration)
+                self.time_label.config(text=f"{pos_str} / {dur_str}")
+        
+        # 多次更新确保同步
+        self.parent.after(50, update)
+        self.parent.after(150, update)
+        self.parent.after(250, update)
+    
+    def _update_time_from_progress(self, progress_value):
+        """根据进度值更新时间显示"""
+        duration = self.player.get_duration()
+        if duration > 0:
+            position = (progress_value / 100) * duration
+            pos_str = self._format_time(position)
+            dur_str = self._format_time(duration)
+            self.time_label.config(text=f"{pos_str} / {dur_str}")
     
     def _on_need_next_song(self, index):
         """处理需要播放下一首/上一首的回调"""
@@ -139,23 +205,21 @@ class EnhancedPlayerWindow:
     
     def play_song(self, song_data: dict, play_url_or_path: str):
         """播放歌曲（支持URL或本地文件路径）"""
-        # 先确保歌曲在播放列表中
         if self.player.play_specific(song_data):
             self.current_song = song_data
             self.current_url_or_path = play_url_or_path
             
-            # 更新UI
             self._update_song_info(song_data)
             
-            # 判断是URL还是本地文件路径
+            # 重置进度条
+            self.progress_bar.set(0)
+            self.time_label.config(text="0:00 / 0:00")
+            
             if play_url_or_path.startswith('http'):
-                # 在线URL
                 if self.player.load(play_url_or_path):
                     self.player.play()
             else:
-                # 本地文件路径
                 try:
-                    # 对于本地文件，直接加载
                     self.player.load_local_file(play_url_or_path)
                     self.player.play()
                 except Exception as e:
@@ -199,7 +263,6 @@ class EnhancedPlayerWindow:
         song_name = song_data.get('name', '未知歌曲')
         self.song_title.config(text=song_name[:30] + "..." if len(song_name) > 30 else song_name)
         
-        # 处理艺术家信息
         artist_data = song_data.get('artist', [])
         if isinstance(artist_data, list):
             artist_names = []
@@ -216,7 +279,6 @@ class EnhancedPlayerWindow:
         album_name = song_data.get('album', '未知专辑')
         self.song_album.config(text=album_name[:40] + "..." if len(album_name) > 40 else album_name)
         
-        # 更新播放列表信息
         current_index = self.player.get_current_index()
         total_songs = len(self.player.get_playlist())
         if current_index >= 0:
@@ -229,7 +291,6 @@ class EnhancedPlayerWindow:
     
     def _on_song_change(self, song_data: dict):
         """处理歌曲变化"""
-        # 在主线程中更新UI
         self.parent.after(0, lambda: self._update_song_info(song_data))
     
     def _on_playlist_end(self):
@@ -243,26 +304,20 @@ class EnhancedPlayerWindow:
     def _on_player_position_change(self, position: float, duration: float):
         """处理播放位置变化"""
         if not self.is_dragging:
-            if duration > 0:
-                progress = (position / duration) * 100
-                self.progress_bar.set(progress)
+            def update_ui():
+                try:
+                    if duration > 0 and position >= 0:
+                        progress = (position / duration) * 100
+                        self.progress_bar.set(progress)
+                        
+                        pos_str = self._format_time(position)
+                        dur_str = self._format_time(duration)
+                        self.time_label.config(text=f"{pos_str} / {dur_str}")
+                except Exception as e:
+                    pass
             
-            pos_str = self._format_time(position)
-            dur_str = self._format_time(duration)
-            self.time_label.config(text=f"{pos_str} / {dur_str}")
-    
-    def _on_progress_press(self, event):
-        """进度条按下"""
-        self.is_dragging = True
-    
-    def _on_progress_release(self, event):
-        """进度条释放"""
-        self.is_dragging = False
-        
-        if self.player.get_duration() > 0:
-            progress = self.progress_bar.get()
-            position = (progress / 100) * self.player.get_duration()
-            self.player.seek(position)
+            if hasattr(self, 'parent') and self.parent:
+                self.parent.after(0, update_ui)
     
     def _on_volume_change(self, event):
         """音量变化"""

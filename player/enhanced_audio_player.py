@@ -34,20 +34,22 @@ class EnhancedAudioPlayer:
         self.on_position_change: Optional[Callable] = None
         self.on_song_change: Optional[Callable] = None
         self.on_playlist_end: Optional[Callable] = None
-        self.on_need_next_song: Optional[Callable] = None  # 新增：需要下一首歌曲的回调
+        self.on_need_next_song: Optional[Callable] = None
         
         # 线程控制
         self._position_thread: Optional[threading.Thread] = None
         self._stop_flag = threading.Event()
+        self._track_start_time = 0
+        self._seek_position = 0  # 专门记录跳转位置
         
     def set_playlist(self, playlist: List[Dict]):
         """设置播放列表"""
-        self.playlist = playlist.copy()  # 使用副本避免引用问题
+        self.playlist = playlist.copy()
         self.current_playlist_index = -1
         
     def add_to_playlist(self, song: Dict):
         """添加到播放列表"""
-        self.playlist.append(song.copy())  # 使用副本
+        self.playlist.append(song.copy())
         
     def clear_playlist(self):
         """清空播放列表"""
@@ -60,7 +62,7 @@ class EnhancedAudioPlayer:
         
     def get_playlist(self) -> List[Dict]:
         """获取播放列表"""
-        return self.playlist.copy()  # 返回副本
+        return self.playlist.copy()
         
     def get_current_index(self) -> int:
         """获取当前播放的索引"""
@@ -73,7 +75,6 @@ class EnhancedAudioPlayer:
             
         if self.current_playlist_index < len(self.playlist) - 1:
             self.current_playlist_index += 1
-            # 通过回调通知外部需要播放下一首
             if self.on_need_next_song:
                 try:
                     self.on_need_next_song(self.current_playlist_index)
@@ -83,7 +84,6 @@ class EnhancedAudioPlayer:
                     return False
             return False
         else:
-            # 播放列表结束
             if self.on_playlist_end:
                 try:
                     self.on_playlist_end()
@@ -98,7 +98,6 @@ class EnhancedAudioPlayer:
             
         if self.current_playlist_index > 0:
             self.current_playlist_index -= 1
-            # 通过回调通知外部需要播放上一首
             if self.on_need_next_song:
                 try:
                     self.on_need_next_song(self.current_playlist_index)
@@ -111,43 +110,35 @@ class EnhancedAudioPlayer:
             
     def play_specific(self, song_data: Dict) -> bool:
         """播放指定的歌曲"""
-        # 查找歌曲在播放列表中的位置
         for i, song in enumerate(self.playlist):
             if song.get('id') == song_data.get('id'):
                 self.current_playlist_index = i
                 break
         else:
-            # 如果不在播放列表中，添加到末尾
             self.add_to_playlist(song_data)
             self.current_playlist_index = len(self.playlist) - 1
             
-        # 设置当前歌曲
         self.current_song = song_data.copy()
         
-        # 通知歌曲变化
         if self.on_song_change:
             try:
                 self.on_song_change(song_data)
             except Exception:
                 pass
                     
-        # 返回True表示可以开始播放
         return True
         
     def load(self, url: str) -> bool:
         """加载音频"""
         try:
-            # 停止当前播放
             self.stop()
             
             self.log(f"开始加载音频: {url[:50]}...")
             
-            # 创建临时文件
             temp_dir = tempfile.gettempdir()
             temp_filename = os.path.join(temp_dir, f"music_temp_{hash(url)}.mp3")
             self.temp_file = temp_filename
             
-            # 下载音频到临时文件
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Referer': 'https://music.gdstudio.xyz/'
@@ -161,26 +152,17 @@ class EnhancedAudioPlayer:
                         if chunk:
                             f.write(chunk)
                 
-                # 加载到pygame
                 pygame.mixer.music.load(temp_filename)
                 self.current_url = url
                 self.state = PlayerState.STOPPED
                 self.position = 0
+                self._seek_position = 0
                 
-                # 获取实际音频时长
-                try:
-                    from mutagen.mp3 import MP3
-                    audio = MP3(temp_filename)
-                    self.duration = audio.info.length
-                except (ImportError, Exception):
-                    # 估算时长
-                    file_size = os.path.getsize(temp_filename)
-                    self.duration = self._estimate_duration(file_size)
+                self.duration = self._get_audio_duration(temp_filename)
                 
-                # 设置音量
                 pygame.mixer.music.set_volume(self.volume)
                 
-                self.log(f"音频加载成功，时长: {self.duration:.1f}秒")
+                self.log(f"音频加载成功，时长: {self.duration:.2f}秒")
                 return True
             else:
                 self.log(f"下载音频失败: HTTP {response.status_code}")
@@ -189,6 +171,66 @@ class EnhancedAudioPlayer:
         except Exception as e:
             self.log(f"加载音频失败: {str(e)}")
             return False
+    
+    def _get_audio_duration(self, filepath: str) -> float:
+        """获取音频文件的准确时长"""
+        try:
+            from mutagen.mp3 import MP3
+            from mutagen.flac import FLAC
+            from mutagen.wave import WAVE
+            from mutagen.oggvorbis import OggVorbis
+            from mutagen.aac import AAC
+            
+            file_ext = os.path.splitext(filepath)[1].lower()
+            
+            if file_ext == '.mp3':
+                audio = MP3(filepath)
+            elif file_ext == '.flac':
+                audio = FLAC(filepath)
+            elif file_ext == '.wav':
+                audio = WAVE(filepath)
+            elif file_ext == '.ogg':
+                audio = OggVorbis(filepath)
+            elif file_ext in ['.m4a', '.aac']:
+                audio = AAC(filepath)
+            else:
+                try:
+                    sound = pygame.mixer.Sound(filepath)
+                    return sound.get_length()
+                except:
+                    return self._estimate_duration_from_file(filepath)
+            
+            return audio.info.length
+        except ImportError:
+            self.log("mutagen库未安装，使用估算时长")
+            try:
+                sound = pygame.mixer.Sound(filepath)
+                return sound.get_length()
+            except:
+                return self._estimate_duration_from_file(filepath)
+        except Exception as e:
+            self.log(f"获取音频时长失败，使用估算: {str(e)}")
+            return self._estimate_duration_from_file(filepath)
+    
+    def _estimate_duration_from_file(self, filepath: str) -> float:
+        """根据文件大小估算音频时长"""
+        try:
+            file_size = os.path.getsize(filepath)
+            file_ext = os.path.splitext(filepath)[1].lower()
+            
+            if file_ext == '.flac':
+                bitrate = 900000
+            elif file_ext in ['.m4a', '.aac']:
+                bitrate = 256000
+            elif file_ext == '.wav':
+                bitrate = 1411200
+            else:
+                bitrate = 320000
+            
+            duration = (file_size * 8) / bitrate
+            return max(60, min(duration, 600))
+        except:
+            return 180
     
     def play(self, url: Optional[str] = None) -> bool:
         """播放音频"""
@@ -199,15 +241,24 @@ class EnhancedAudioPlayer:
             
             if self.state == PlayerState.PAUSED:
                 pygame.mixer.music.unpause()
+                self.state = PlayerState.PLAYING
             else:
-                pygame.mixer.music.play()
+                # 如果有跳转位置，从那里开始播放
+                if hasattr(self, '_seek_position') and self._seek_position > 0:
+                    pygame.mixer.music.play(start=self._seek_position)
+                    self.position = self._seek_position
+                    self._seek_position = 0
+                else:
+                    pygame.mixer.music.play()
+                    self.position = 0
             
             self.state = PlayerState.PLAYING
+            self._track_start_time = time.time() - self.position
             self._stop_flag.clear()
             self._start_position_tracking()
             self._notify_state_change()
             
-            self.log("开始播放")
+            self.log(f"开始播放，总时长: {self.duration:.2f}秒")
             return True
             
         except Exception as e:
@@ -227,6 +278,7 @@ class EnhancedAudioPlayer:
         if self.state == PlayerState.PAUSED:
             pygame.mixer.music.unpause()
             self.state = PlayerState.PLAYING
+            self._start_position_tracking()
             self._notify_state_change()
             self.log("恢复播放")
     
@@ -238,9 +290,9 @@ class EnhancedAudioPlayer:
         
         self.state = PlayerState.STOPPED
         self.position = 0
+        self._seek_position = 0
         self._notify_state_change()
         
-        # 清理临时文件
         if self.temp_file and os.path.exists(self.temp_file):
             try:
                 os.remove(self.temp_file)
@@ -249,33 +301,60 @@ class EnhancedAudioPlayer:
                 self.log(f"清理临时文件失败: {str(e)}")
         
         self.log("停止播放")
-    
+
     def seek(self, position: float):
-        """跳转到指定位置（秒）"""
+        """跳转到指定位置（秒）- 修复版"""
         try:
             if position < 0:
                 position = 0
             elif position > self.duration:
                 position = self.duration
             
-            # 如果正在播放，先停止位置跟踪
-            if self.state == PlayerState.PLAYING:
-                self._stop_flag.set()
+            self.log(f"开始跳转到: {position:.1f}秒")
             
-            pygame.mixer.music.play(start=position)
+            # 记录当前状态
+            was_playing = self.state == PlayerState.PLAYING
+            
+            # 停止位置跟踪
+            self._stop_position_tracking()
+            
+            # 停止当前播放
+            pygame.mixer.music.stop()
+            
+            # 关键修复：使用_seek_position记录跳转位置
+            self._seek_position = position
             self.position = position
             
-            # 如果之前是播放状态，恢复播放和位置跟踪
-            if self.state == PlayerState.PLAYING:
-                self._stop_flag.clear()
-                if not self._position_thread or not self._position_thread.is_alive():
-                    self._start_position_tracking()
+            # 重新加载音乐并设置位置
+            if self.temp_file and os.path.exists(self.temp_file):
+                pygame.mixer.music.load(self.temp_file)
             
+            # 从指定位置开始播放
+            pygame.mixer.music.play(start=position)
+            
+            # 如果不是播放状态，立即暂停
+            if not was_playing:
+                pygame.mixer.music.pause()
+                self.state = PlayerState.PAUSED
+            else:
+                self.state = PlayerState.PLAYING
+            
+            # 重置起始时间
+            self._track_start_time = time.time() - position
+            
+            # 重新开始位置跟踪
+            if self.state == PlayerState.PLAYING:
+                self._start_position_tracking()
+            
+            # 立即通知位置变化
             self._notify_position_change()
-            self.log(f"跳转到: {position:.1f}秒")
+            
+            self.log(f"跳转完成到: {position:.1f}秒，状态: {self.state.value}")
+            return True
             
         except Exception as e:
             self.log(f"跳转失败: {str(e)}")
+            return False
     
     def set_volume(self, volume: float):
         """设置音量（0.0-1.0）"""
@@ -306,49 +385,38 @@ class EnhancedAudioPlayer:
     def load_local_file(self, filepath: str) -> bool:
         """加载本地音频文件"""
         try:
-            # 停止当前播放
             self.stop()
             
             self.log(f"加载本地音频文件: {filepath}")
             
-            # 直接加载到pygame
             pygame.mixer.music.load(filepath)
             self.current_url = f"file://{filepath}"
             self.state = PlayerState.STOPPED
             self.position = 0
+            self._seek_position = 0
             
-            # 获取实际音频时长
-            try:
-                from mutagen.mp3 import MP3
-                audio = MP3(filepath)
-                self.duration = audio.info.length
-            except (ImportError, Exception):
-                # 估算时长
-                file_size = os.path.getsize(filepath)
-                self.duration = self._estimate_duration(file_size)
+            self.duration = self._get_audio_duration(filepath)
             
-            # 设置音量
             pygame.mixer.music.set_volume(self.volume)
             
-            self.log(f"本地音频加载成功，时长: {self.duration:.1f}秒")
+            self.log(f"本地音频加载成功，时长: {self.duration:.2f}秒")
             return True
             
         except Exception as e:
             self.log(f"加载本地音频失败: {str(e)}")
             return False
     
-    def _estimate_duration(self, file_size: int) -> float:
-        """估算时长"""
-        bitrate = 320000  # 320kbps
-        duration = (file_size * 8) / bitrate
-        return duration if duration > 0 else 180
-    
     def _start_position_tracking(self):
         """启动位置跟踪线程"""
         if self._position_thread and self._position_thread.is_alive():
-            return
+            self._stop_flag.set()
+            try:
+                self._position_thread.join(timeout=0.5)
+            except:
+                pass
         
         self._stop_flag.clear()
+        
         self._position_thread = threading.Thread(
             target=self._track_position, 
             daemon=True,
@@ -359,46 +427,59 @@ class EnhancedAudioPlayer:
     def _stop_position_tracking(self):
         """停止位置跟踪"""
         self._stop_flag.set()
-        # 不调用join，避免线程死锁
     
     def _track_position(self):
         """跟踪播放位置"""
-        last_update = time.time()
+        self.log("位置跟踪线程开始运行")
+        
+        error_count = 0
+        max_errors = 5
         
         while not self._stop_flag.is_set() and self.state == PlayerState.PLAYING:
             try:
+                # 使用时间计算当前位置
                 current_time = time.time()
-                time_elapsed = current_time - last_update
+                time_elapsed = current_time - self._track_start_time
+                self.position = time_elapsed
                 
-                if pygame.mixer.music.get_busy():
-                    self.position += time_elapsed
-                    
-                    # 防止超出总时长
-                    if self.position > self.duration:
-                        self.position = self.duration
-                    
-                    # 通知位置变化
-                    if current_time - last_update >= 0.1:  # 每0.1秒更新一次
-                        self._notify_position_change()
-                        last_update = current_time
-                else:
-                    # 播放自然结束
-                    if self.position >= self.duration - 0.5:  # 允许微小误差
+                # 防止超出总时长
+                if self.position > self.duration:
+                    self.position = self.duration
+                    self._handle_playback_finished()
+                    break
+                
+                # 通知位置变化
+                self._notify_position_change()
+                
+                # 检查播放是否结束
+                if not pygame.mixer.music.get_busy():
+                    if self.position >= self.duration - 1.0:
                         self._handle_playback_finished()
                         break
                 
-                time.sleep(0.05)
+                time.sleep(0.1)
+                error_count = 0
                 
             except Exception as e:
-                self.log(f"位置跟踪错误: {str(e)}")
-                break
+                error_count += 1
+                if error_count > max_errors:
+                    self.log(f"位置跟踪发生多次错误: {str(e)}，停止跟踪")
+                    break
+                time.sleep(0.1)
+        
+        self.log("位置跟踪线程结束运行")
     
     def _handle_playback_finished(self):
         """处理播放完成"""
         self.log("播放完成")
-        # 自动播放下一首
-        if not self.play_next():
-            # 如果没有下一首，停止播放
+        self.position = self.duration
+        self._notify_position_change()
+        
+        try:
+            if not self.play_next():
+                self.stop()
+        except Exception as e:
+            self.log(f"处理播放完成时出错: {str(e)}")
             self.stop()
     
     def _notify_state_change(self):
