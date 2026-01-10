@@ -13,8 +13,39 @@ import traceback
 # 添加项目根目录到Python路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+def init_application():
+    """初始化应用程序"""
+    try:
+        from utils.file_handler import FileHandler
+        
+        print("=" * 50)
+        print("GD音乐播放器 启动初始化")
+        print("=" * 50)
+        
+        # 初始化所有必要的目录和文件
+        data_dir = FileHandler.get_data_dir()
+        download_dir = FileHandler.get_download_dir()
+        
+        print(f"数据目录: {data_dir}")
+        print(f"下载目录: {download_dir}")
+        
+        # 预加载必要的数据文件（如果不存在会自动创建）
+        FileHandler.load_favorites()
+        FileHandler.load_playlist()
+        FileHandler.load_download_history()
+        
+        print("初始化完成！")
+        print("=" * 50)
+        
+    except Exception as e:
+        print(f"[启动错误] 初始化失败: {e}")
+        traceback.print_exc()
+
 def main():
     """主函数"""
+    # 初始化应用
+    init_application()
+    
     try:
         # 检查依赖
         import requests
