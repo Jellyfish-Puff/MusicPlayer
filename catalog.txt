@@ -2,15 +2,15 @@ music_player/
 ├── main.py
 ├── api/
 │   └── music_api.py
-├── data/                       # 数据目录（问题：程序不从这里读取和保存数据）
+├── data/                       # 数据目录
+│   ├── download_history.json   # 下载历史
 │   ├── favorites.json          # 收藏数据
 │   └── playlist.json           # 播放列表数据
 ├── downloads/                  # 下载目录
-│   └── download_history.json   # 下载历史（自动创建）（问题：无法自动创建）
 ├── gui/
 │   ├── __init__.py
 │   ├── base_panel.py           # 基础面板类
-│   ├── downloads_panel.py      # 下载管理面板（新增）
+│   ├── downloads_panel.py      # 下载管理面板
 │   ├── enhanced_player_window.py # 增强播放器窗口
 │   ├── favorites_panel.py      # 收藏管理面板
 │   ├── main_window.py          # 主窗口控制器
@@ -20,6 +20,8 @@ music_player/
 │   ├── audio_player.py
 │   └── enhanced_audio_player.py # 增强音频播放器
 └── utils/
+    ├── __init__.py
+    ├── download_manager.py
     ├── file_handler.py
     ├── logger.py
     └── playlist_handler.py     # 播放列表处理器
